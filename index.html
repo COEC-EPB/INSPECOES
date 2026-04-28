@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Processador IPEO</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.box {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  width: 350px;
+  text-align: center;
+}
+
+input, button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+button {
+  background: #22c55e;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+#status {
+  margin-top: 10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+  <h2>📊 Processador IPEO</h2>
+
+<label>📂 Arquivos Mensais</label> <input type="file" id="meses" multiple>
+
+<label>📂 Arquivo IPEO</label> <input type="file" id="ipeo">
+
+<button onclick="enviar()">Processar</button>
+
+  <div id="status"></div>
+</div>
+
+<script>
+async function enviar() {
+
+  const meses = document.getElementById("meses").files;
+  const ipeo = document.getElementById("ipeo").files[0];
+  const status = document.getElementById("status");
+
+  if (meses.length === 0 || !ipeo) {
+    alert("Envie todos os arquivos");
+    return;
+  }
+
+  const formData = new FormData();
+
+  for (let i = 0; i < meses.length; i++) {
+    formData.append("meses", meses[i]);
+  }
+
+  formData.append("ipeo", ipeo);
+
+  try {
+    status.innerText = "⏳ Processando...";
+
+    const res = await fetch("https://meu-backend-w0ao.onrender.com/processar", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!res.ok) throw new Error("Erro na API");
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "resultado.xlsx";
+    a.click();
+
+    status.innerText = "✅ Concluído!";
+
+  } catch (err) {
+    status.innerText = "❌ " + err.message;
+  }
+}
+</script>
+
+</body>
+</html>
