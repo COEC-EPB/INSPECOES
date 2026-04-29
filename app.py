@@ -204,18 +204,10 @@ def processar():
         ordem_existente = [c for c in ordem if c in df_final.columns]
         df_final = df_final[ordem_existente]
 
-        output = io.BytesIO()
-
-        df_final.to_excel(output, index=False)
+        output = "resultado.csv"
+        df_final.to_csv(output, index=False)
         
-        output.seek(0)
-        
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name="resultado.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        return send_file(output, as_attachment=True)
 
         
     except Exception as e:
