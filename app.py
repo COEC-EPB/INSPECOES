@@ -11,7 +11,7 @@ def home():
     return "API online 🚀"
 
 
-# 🔹 EXTRAIR MES DO NOME DO ARQUIVO
+# 🔹 EXTRAIR MES
 def extrair_mes(nome):
     nome = nome.upper()
 
@@ -27,7 +27,7 @@ def extrair_mes(nome):
     elif "OUT" in nome: return "OUT"
     elif "NOV" in nome: return "NOV"
     elif "DEZ" in nome: return "DEZ"
-    else: return None
+    return None
 
 
 # 🔹 LIMPAR TEXTO
@@ -43,12 +43,11 @@ def normalizar(df):
     return df
 
 
-# 🔹 LER EXCEL COM HEADER AUTOMÁTICO
+# 🔹 LER EXCEL
 def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
     header_row = 0
-
     for i, row in df_raw.iterrows():
         texto = " ".join(row.astype(str).apply(limpar))
         if "FUNCIONARIO" in texto:
@@ -68,15 +67,12 @@ def col(df, nome):
     return None
 
 
-# 🔹 SEPARAR MATRICULA E NOME
+# 🔹 SEPARAR FUNCIONARIO
 def separar_funcionario(df, coluna):
     split = df[coluna].astype(str).str.split(" - ", n=1, expand=True)
 
-    df["MATRICULA"] = split[0].str.strip()
+    df["MATRICULA"] = split[0].str.strip().str.replace(r"\.0$", "", regex=True)
     df["NOME"] = split[1].str.strip()
-
-    # evita problema tipo 3080117.0
-    df["MATRICULA"] = df["MATRICULA"].str.replace(r"\.0$", "", regex=True)
 
     return df
 
@@ -90,43 +86,35 @@ def processar():
         if not arquivos or not ipeo_file:
             return jsonify({"erro": "Envie arquivos"}), 400
 
-        # 🔹 PROCESSAR MESES
+        # 🔹 MESES
         lista = []
 
         for f in arquivos:
-            try:
-                df = ler_excel(f)
+            df = ler_excel(f)
 
-                mes = extrair_mes(f.filename)
-                if not mes:
-                    return jsonify({"erro": f"Mês inválido: {f.filename}"}), 400
+            mes = extrair_mes(f.filename)
+            if not mes:
+                return jsonify({"erro": f"Mês inválido: {f.filename}"}), 400
 
-                df["MES"] = mes
+            df["MES"] = mes
 
-                col_func = col(df, "FUNCIONARIO")
-                if not col_func:
-                    return jsonify({"erro": f"FUNCIONARIO não encontrado em {f.filename}"}), 400
+            col_func = col(df, "FUNCIONARIO")
+            if not col_func:
+                return jsonify({"erro": f"FUNCIONARIO não encontrado em {f.filename}"}), 400
 
-                df = separar_funcionario(df, col_func)
+            df = separar_funcionario(df, col_func)
 
-                lista.append(df)
-
-            except Exception as e:
-                return jsonify({"erro": f"Erro {f.filename}: {str(e)}"}), 400
+            lista.append(df)
 
         df_meses = pd.concat(lista, ignore_index=True)
 
-        # 🔹 PROCESSAR IPEO
-        try:
-            df_ipeo = ler_excel(ipeo_file)
-        except Exception as e:
-            return jsonify({"erro": f"Erro no IPEO: {str(e)}"}), 400
+        # 🔹 IPEO
+        df_ipeo = ler_excel(ipeo_file)
 
-        # garantir string
         df_meses["MATRICULA"] = df_meses["MATRICULA"].astype(str)
         df_ipeo["MATRICULA"] = df_ipeo["MATRICULA"].astype(str)
 
-        # 🔹 AJUSTAR MES IPEO (se vier número)
+        # 🔹 AJUSTAR MES IPEO
         if df_ipeo["MES"].dtype != "object":
             mapa = {
                 1: "JAN", 2: "FEV", 3: "MAR", 4: "ABR",
@@ -135,33 +123,41 @@ def processar():
             }
             df_ipeo["MES"] = df_ipeo["MES"].map(mapa)
 
-        # 🔹 MERGE FINAL
+        # 🔹 MERGE
         df = df_meses.merge(df_ipeo, on=["MATRICULA", "MES"], how="inner")
 
-        # 🔹 AGRUPAMENTO FINAL
-       def get(nome):
-    return col(df, nome)
+        print("COLUNAS APÓS MERGE:", df.columns.tolist())
 
-    col_empresa = get("EMPRESA")
-    col_regional = get("REGIONAL")
-    col_polo = get("POLO")
-    
-    colunas_grupo = [
-        col_empresa,
-        "MES",
-        col_regional,
-        col_polo,
-        "MATRICULA",
-        "NOME"
-    ]
-    
-    # remove None
-    colunas_grupo = [c for c in colunas_grupo if c is not None]
-    
-    if len(colunas_grupo) < 3:
-        return jsonify({"erro": "Colunas essenciais não encontradas após merge"}), 400
-    
-    df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
+        # 🔥 RESOLVER EMPRESA
+        if "EMPRESA_x" in df.columns:
+            df["EMPRESA"] = df["EMPRESA_x"]
+        elif "EMPRESA_y" in df.columns:
+            df["EMPRESA"] = df["EMPRESA_y"]
+
+        # 🔹 BUSCAR COLUNAS DINAMICAMENTE
+        def get(nome):
+            return col(df, nome)
+
+        col_empresa = get("EMPRESA")
+        col_regional = get("REGIONAL")
+        col_polo = get("POLO")
+
+        colunas_grupo = [
+            col_empresa,
+            "MES",
+            col_regional,
+            col_polo,
+            "MATRICULA",
+            "NOME"
+        ]
+
+        colunas_grupo = [c for c in colunas_grupo if c is not None]
+
+        if len(colunas_grupo) < 3:
+            return jsonify({"erro": "Colunas essenciais não encontradas"}), 400
+
+        # 🔹 AGRUPAMENTO
+        df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
 
         # 🔹 EXPORTAR
         output = "resultado.xlsx"
