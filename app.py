@@ -6,239 +6,218 @@ import unicodedata
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route('/')
 def home():
     return "API online 🚀"
 
 
-# 🔹 EXTRAIR MES DO NOME DO ARQUIVO
-def extrair_mes(nome):
-    nome = nome.upper()
-
-    if "JAN" in nome: return "JAN"
-    elif "FEV" in nome: return "FEV"
-    elif "MAR" in nome: return "MAR"
-    elif "ABR" in nome: return "ABR"
-    elif "MAI" in nome: return "MAI"
-    elif "JUN" in nome: return "JUN"
-    elif "JUL" in nome: return "JUL"
-    elif "AGO" in nome: return "AGO"
-    elif "SET" in nome: return "SET"
-    elif "OUT" in nome: return "OUT"
-    elif "NOV" in nome: return "NOV"
-    elif "DEZ" in nome: return "DEZ"
-    else: return None
-
-
-# 🔹 LIMPAR TEXTO
-def limpar(texto):
-    texto = str(texto).strip().upper()
-    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
-    return texto
-
-
 # 🔹 NORMALIZAR COLUNAS
-def normalizar(df):
+def normalizar_colunas(df):
+    def limpar(col):
+        col = str(col).strip().upper()
+        col = unicodedata.normalize('NFKD', col).encode('ASCII', 'ignore').decode('ASCII')
+        return col
     df.columns = [limpar(c) for c in df.columns]
     return df
 
 
-# 🔹 LER EXCEL COM HEADER AUTOMÁTICO
-def ler_excel(file):
-    df_raw = pd.read_excel(file, header=None)
-
-    header_row = 0
-
-    for i, row in df_raw.iterrows():
-        texto = " ".join(row.astype(str).apply(limpar))
-        if "FUNCIONARIO" in texto:
-            header_row = i
-            break
-
-    df = pd.read_excel(file, header=header_row)
-    return normalizar(df)
-
-
-# 🔹 ENCONTRAR COLUNA
+# 🔹 ENCONTRAR COLUNA APROXIMADA
 def col(df, nome):
-    nome = limpar(nome).replace(" ", "")
+    nome = nome.upper()
     for c in df.columns:
-        if nome in limpar(c).replace(" ", ""):
+        if nome in c:
             return c
     return None
 
 
-# 🔹 SEPARAR MATRICULA E NOME
-def separar_funcionario(df, coluna):
-    split = df[coluna].astype(str).str.split(" - ", n=1, expand=True)
+# 🔹 LER EXCEL CORRIGINDO HEADER
+def ler_excel(file):
+    df_raw = pd.read_excel(file, header=None)
 
-    df["MATRICULA"] = split[0].str.strip()
-    df["NOME"] = split[1].str.strip()
+    header_row = None
+    for i, row in df_raw.iterrows():
+        if row.astype(str).str.upper().str.contains("MATRICULA").any():
+            header_row = i
+            break
 
-    # evita problema tipo 3080117.0
-    df["MATRICULA"] = df["MATRICULA"].str.replace(r"\.0$", "", regex=True)
+    if header_row is None:
+        raise ValueError("Não encontrou cabeçalho com MATRICULA")
+
+    df = pd.read_excel(file, header=header_row)
+    df = normalizar_colunas(df)
 
     return df
 
 
+# 🔹 EXTRAIR MES PELO NOME DO ARQUIVO
+def extrair_mes(nome):
+    nome = nome.upper()
+
+    mapa = {
+        "JAN": "JAN",
+        "FEV": "FEV",
+        "MAR": "MAR",
+        "ABR": "ABR",
+        "MAI": "MAI",
+        "JUN": "JUN",
+        "JUL": "JUL",
+        "AGO": "AGO",
+        "SET": "SET",
+        "OUT": "OUT",
+        "NOV": "NOV",
+        "DEZ": "DEZ"
+    }
+
+    for k in mapa:
+        if k in nome:
+            return mapa[k]
+
+    return None
+
+
+# 🔹 SEPARAR MATRÍCULA E NOME
+def separar_funcionario(df, col_func):
+    split = df[col_func].astype(str).str.split("-", n=1, expand=True)
+
+    df["MATRICULA"] = split[0].str.strip()
+    df["NOME"] = split[1].str.strip() if split.shape[1] > 1 else ""
+
+    return df
+
+
+# 🔹 PADRONIZAR CHAVES
+def padronizar_chaves(df):
+    df["MATRICULA"] = df["MATRICULA"].astype(str).str.replace(".0", "", regex=False).str.strip()
+    df["MES"] = df["MES"].astype(str).str.upper().str.strip()
+
+    return df
+
+
+# 🔥 ROTA PRINCIPAL
 @app.route('/processar', methods=['POST'])
 def processar():
     try:
+
         arquivos = request.files.getlist("meses")
         ipeo_file = request.files.get("ipeo")
 
         if not arquivos or not ipeo_file:
             return jsonify({"erro": "Envie arquivos"}), 400
 
-        # 🔹 PROCESSAR MESES
+        # 🔹 MESES
         lista = []
 
         for f in arquivos:
-            try:
-                df = ler_excel(f)
+            df = ler_excel(f)
 
-                mes = extrair_mes(f.filename)
-                if not mes:
-                    return jsonify({"erro": f"Mês inválido: {f.filename}"}), 400
+            mes = extrair_mes(f.filename)
+            if not mes:
+                return jsonify({"erro": f"Mês inválido: {f.filename}"}), 400
 
-                df["MES"] = mes
+            df["MES"] = mes
 
-                col_func = col(df, "FUNCIONARIO")
-                if not col_func:
-                    return jsonify({"erro": f"FUNCIONARIO não encontrado em {f.filename}"}), 400
+            col_func = col(df, "FUNCIONARIO")
+            if not col_func:
+                return jsonify({"erro": f"FUNCIONARIO não encontrado em {f.filename}"}), 400
 
-                df = separar_funcionario(df, col_func)
+            df = separar_funcionario(df, col_func)
 
-                lista.append(df)
-
-            except Exception as e:
-                return jsonify({"erro": f"Erro {f.filename}: {str(e)}"}), 400
+            lista.append(df)
 
         df_meses = pd.concat(lista, ignore_index=True)
 
-        # 🔹 PROCESSAR IPEO
-        try:
-            df_ipeo = ler_excel(ipeo_file)
-        except Exception as e:
-            return jsonify({"erro": f"Erro no IPEO: {str(e)}"}), 400
+        # 🔹 IPEO
+        df_ipeo = ler_excel(ipeo_file)
 
-        # garantir string
-        df_meses["MATRICULA"] = df_meses["MATRICULA"].astype(str)
-        df_ipeo["MATRICULA"] = df_ipeo["MATRICULA"].astype(str)
+        # 🔹 PADRONIZAÇÃO
+        df_meses = padronizar_chaves(df_meses)
+        df_ipeo = padronizar_chaves(df_ipeo)
 
-        # 🔹 AJUSTAR MES IPEO (se vier número)
-        if df_ipeo["MES"].dtype != "object":
-            mapa = {
-                1: "JAN", 2: "FEV", 3: "MAR", 4: "ABR",
-                5: "MAI", 6: "JUN", 7: "JUL", 8: "AGO",
-                9: "SET", 10: "OUT", 11: "NOV", 12: "DEZ"
-            }
-            df_ipeo["MES"] = df_ipeo["MES"].map(mapa)
+        print("MES MESES:", df_meses["MES"].unique())
+        print("MES IPEO:", df_ipeo["MES"].unique())
 
-        # 🔹 MERGE FINAL
+        # 🔹 MERGE
         df = df_meses.merge(df_ipeo, on=["MATRICULA", "MES"], how="inner")
-# 🔹 PADRONIZAÇÃO
-df_meses = padronizar_chaves(df_meses)
-df_ipeo = padronizar_chaves(df_ipeo)
 
-print("MES MESES:", df_meses["MES"].unique())
-print("MES IPEO:", df_ipeo["MES"].unique())
+        print("LINHAS APÓS MERGE:", len(df))
 
-# 🔹 MERGE (SÓ UMA VEZ!)
-df = df_meses.merge(df_ipeo, on=["MATRICULA", "MES"], how="inner")
+        if df.empty:
+            return jsonify({"erro": "Merge não encontrou dados (MATRICULA/MES não batem)"}), 400
 
-print("LINHAS APÓS MERGE:", len(df))
+        # 🔹 COLUNAS DINÂMICAS
+        def get(nome):
+            return col(df, nome)
 
-if df.empty:
-    return jsonify({"erro": "Merge não encontrou dados (verifique MATRÍCULA e MES)"}), 400
+        col_empresa = get("EMPRESA")
+        col_regional = get("REGIONAL")
+        col_polo = get("POLO")
+        col_prestador = get("PRESTADOR")
+        col_nome = get("NOME")
 
+        colunas_grupo = [
+            col_empresa,
+            "MES",
+            col_regional,
+            col_prestador,
+            col_polo,
+            "MATRICULA",
+            col_nome
+        ]
 
-# 🔥 RESOLVER EMPRESA
-if "EMPRESA_x" in df.columns:
-    df["EMPRESA"] = df["EMPRESA_x"]
-elif "EMPRESA_y" in df.columns:
-    df["EMPRESA"] = df["EMPRESA_y"]
+        colunas_grupo = [c for c in colunas_grupo if c is not None]
 
+        # 🔹 AGRUPAMENTO
+        df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
 
-# 🔹 GARANTIR COLUNAS PRINCIPAIS
-def get(nome):
-    return col(df, nome)
+        # 🔹 RENOMEAR COLUNAS
+        mapa_saida = {
+            "MES": "MÊS",
+            "MATRICULA": "MATRÍCULA",
+            "PRODUTIVIDADE": "% Produtividade",
+            "EFICIENCIA": "% Eficiência",
+            "UTILIZACAO": "% Utilização",
+            "DI": "% DI",
+            "ROE": "% ROE",
+            "RNT": "% RNT",
+            "IOC": "% IOC",
+            "ISF": "% ISF",
+            "ROV": "% ROV",
+            "IPEO": "% IPEO"
+        }
 
+        df_final = df_final.rename(columns=mapa_saida)
 
-col_empresa = get("EMPRESA")
-col_regional = get("REGIONAL")
-col_polo = get("POLO")
-col_prestador = get("PRESTADOR")
-col_nome = get("NOME")
+        # 🔹 ORDEM FINAL
+        ordem = [
+            "EMPRESA",
+            "MÊS",
+            "REGIONAL",
+            "PRESTADOR",
+            "MATRÍCULA",
+            "NOME",
+            "% Utilização",
+            "% Produtividade",
+            "% Eficiência",
+            "TMS",
+            "% DI",
+            "% ROE",
+            "% RNT",
+            "% IOC",
+            "% ISF",
+            "% ROV",
+            "% IPEO",
+            "POLO"
+        ]
 
-# 🔹 COLUNAS DE GRUPO
-colunas_grupo = [
-    col_empresa,
-    "MES",
-    col_regional,
-    col_prestador,
-    col_polo,
-    "MATRICULA",
-    col_nome
-]
+        ordem_existente = [c for c in ordem if c in df_final.columns]
+        df_final = df_final[ordem_existente]
 
-colunas_grupo = [c for c in colunas_grupo if c is not None]
+        # 🔹 EXPORTAR
+        output = "resultado.xlsx"
+        df_final.to_excel(output, index=False)
 
-
-# 🔹 AGRUPAMENTO
-df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
-
-
-# 🔥 RENOMEAR COLUNAS (SAÍDA FINAL BONITA)
-mapa_saida = {
-    "MES": "MÊS",
-    "MATRICULA": "MATRÍCULA",
-    "PRODUTIVIDADE": "% Produtividade",
-    "EFICIENCIA": "% Eficiência",
-    "UTILIZACAO": "% Utilização",
-    "DI": "% DI",
-    "ROE": "% ROE",
-    "RNT": "% RNT",
-    "IOC": "% IOC",
-    "ISF": "% ISF",
-    "ROV": "% ROV",
-    "IPEO": "% IPEO"
-}
-
-df_final = df_final.rename(columns=mapa_saida)
-
-
-# 🔹 ORDENAR COLUNAS NA ORDEM QUE VOCÊ QUER
-ordem = [
-    "EMPRESA",
-    "MÊS",
-    "REGIONAL",
-    "PRESTADOR",
-    "MATRÍCULA",
-    "NOME",
-    "% Utilização",
-    "% Produtividade",
-    "% Eficiência",
-    "TMS",
-    "% DI",
-    "% ROE",
-    "% RNT",
-    "% IOC",
-    "% ISF",
-    "% ROV",
-    "% IPEO",
-    "POLO"
-]
-
-ordem_existente = [c for c in ordem if c in df_final.columns]
-df_final = df_final[ordem_existente]
-
-
-# 🔹 EXPORTAR
-output = "resultado.xlsx"
-df_final.to_excel(output, index=False)
-
-return send_file(output, as_attachment=True)
+        return send_file(output, as_attachment=True)
 
     except Exception as e:
         print("ERRO:", str(e))
