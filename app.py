@@ -26,19 +26,25 @@ def normalizar_colunas(df):
 
 # 🔹 DETECTAR HEADER AUTOMATICAMENTE
 def ler_excel_corrigido(file):
+
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
 
+    palavras_chave = ["MATRICULA", "MATRIC", "FUNCIONARIO", "NOME"]
+
     for i, row in df_raw.iterrows():
         valores = row.astype(str).apply(limpar_texto)
 
-        if valores.str.contains("MATRICULA").any():
+        texto_linha = " ".join(valores.tolist())
+
+        if any(p in texto_linha for p in palavras_chave):
             header_row = i
             break
 
     if header_row is None:
-        raise Exception("Não encontrou cabeçalho com MATRICULA")
+        # 🔥 fallback: usa linha 5 (comum em relatórios)
+        header_row = 5
 
     df = pd.read_excel(file, header=header_row)
     df = normalizar_colunas(df)
