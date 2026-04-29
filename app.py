@@ -38,28 +38,28 @@ def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
+    melhor_score = 0
 
     for i, row in df_raw.iterrows():
-        valores = row.astype(str).str.upper()
+        valores = row.astype(str)
 
-        # 🔥 procurar linha real de cabeçalho
-        if (
-            valores.str.contains("FUNCIONARIO").any() or
-            valores.str.contains("NOME FUNCIONARIO").any()
-        ):
+        # conta quantas colunas não vazias existem
+        score = valores.str.strip().ne("").sum()
+
+        # queremos linha com MUITAS colunas preenchidas
+        if score > melhor_score:
+            melhor_score = score
             header_row = i
-            break
 
-    # fallback
+    # segurança
     if header_row is None:
-        print("⚠️ NÃO ACHOU HEADER → usando linha 1")
-        header_row = 1
+        raise ValueError("Não conseguiu detectar header")
 
     df = pd.read_excel(file, header=header_row)
 
     df = normalizar_colunas(df)
 
-    print("✅ HEADER USADO:", header_row)
+    print("✅ HEADER DETECTADO:", header_row)
     print("📊 COLUNAS:", df.columns.tolist())
 
     return df
