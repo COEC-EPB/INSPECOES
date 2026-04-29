@@ -40,6 +40,7 @@ def ler_excel(file):
     for i, row in df_raw.iterrows():
         valores = row.astype(str).str.upper()
 
+        # 🔥 procura algo com MATR (não só MATRICULA)
         if valores.str.contains("MATR").any():
             header_row = i
             break
@@ -50,12 +51,10 @@ def ler_excel(file):
     df = pd.read_excel(file, header=header_row)
     df = normalizar_colunas(df)
 
-    print("COLUNAS DETECTADAS:", df.columns.tolist())
-
     return df
 
 
-# 🔹 EXTRAIR MES
+# 🔹 EXTRAIR MES PELO NOME DO ARQUIVO
 def extrair_mes(nome):
     nome = nome.upper()
 
@@ -72,21 +71,19 @@ def extrair_mes(nome):
     return None
 
 
-# 🔹 SEPARAR FUNCIONARIO (MATRICULA - NOME)
+# 🔹 SEPARAR MATRÍCULA E NOME (FUNCIONARIO)
 def separar_funcionario(df, col_func):
 
     serie = df[col_func].astype(str)
 
     split = serie.str.split("-", n=1, expand=True)
 
-    df["MATRICULA"] = split[0].str.strip()
+    df["MATRICULA"] = split[0].str.strip().str.replace(".0", "", regex=False)
 
     if split.shape[1] > 1:
         df["NOME"] = split[1].str.strip()
     else:
         df["NOME"] = ""
-
-    df["MATRICULA"] = df["MATRICULA"].str.replace(".0", "", regex=False)
 
     return df
 
@@ -141,16 +138,13 @@ def processar():
         print("MES MESES:", df_meses["MES"].unique())
         print("MES IPEO:", df_ipeo["MES"].unique())
 
-        print("MATRICULAS MESES:", df_meses["MATRICULA"].head())
-        print("MATRICULAS IPEO:", df_ipeo["MATRICULA"].head())
-
         # 🔹 MERGE
         df = df_meses.merge(df_ipeo, on=["MATRICULA", "MES"], how="inner")
 
         print("LINHAS APÓS MERGE:", len(df))
 
         if df.empty:
-            return jsonify({"erro": "Merge não encontrou dados (verifique MATRÍCULA/MES)"}), 400
+            return jsonify({"erro": "Merge vazio → MATRÍCULA ou MES não batem"}), 400
 
         # 🔹 COLUNAS DINÂMICAS
         def get(nome):
@@ -161,5 +155,54 @@ def processar():
             "MES",
             get("REGIONAL"),
             get("PRESTADOR"),
+            get("POLO"),
             "MATRICULA",
-            get("N
+            get("NOME")
+        ]
+
+        colunas_grupo = [c for c in colunas_grupo if c is not None]
+
+        # 🔹 AGRUPAMENTO
+        df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
+
+        # 🔹 RENOMEAR
+        mapa_saida = {
+            "MES": "MÊS",
+            "MATRICULA": "MATRÍCULA",
+            "PRODUTIVIDADE": "% Produtividade",
+            "EFICIENCIA": "% Eficiência",
+            "UTILIZACAO": "% Utilização",
+            "DI": "% DI",
+            "ROE": "% ROE",
+            "RNT": "% RNT",
+            "IOC": "% IOC",
+            "ISF": "% ISF",
+            "ROV": "% ROV",
+            "IPEO": "% IPEO"
+        }
+
+        df_final = df_final.rename(columns=mapa_saida)
+
+        # 🔹 ORDEM FINAL
+        ordem = [
+            "EMPRESA", "MÊS", "REGIONAL", "PRESTADOR", "MATRÍCULA", "NOME",
+            "% Utilização", "% Produtividade", "% Eficiência", "TMS",
+            "% DI", "% ROE", "% RNT", "% IOC", "% ISF", "% ROV", "% IPEO", "POLO"
+        ]
+
+        ordem_existente = [c for c in ordem if c in df_final.columns]
+        df_final = df_final[ordem_existente]
+
+        # 🔹 EXPORTAR
+        output = "resultado.xlsx"
+        df_final.to_excel(output, index=False)
+
+        return send_file(output, as_attachment=True)
+
+    except Exception as e:
+        print("ERRO:", str(e))
+        return jsonify({"erro": str(e)}), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
