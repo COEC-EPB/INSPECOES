@@ -102,12 +102,11 @@ def processar():
 
         # 🔹 MAPEAR COLUNAS CHAVE
         mapa_meses = {
-            "MATRICULA": encontrar_coluna(df_meses, "MATRICULA"),
-            "MES": encontrar_coluna(df_meses, "MES"),
+            "NOME": encontrar_coluna(df_meses, "FUNCIONARIO"),
         }
-
+        
         mapa_ipeo = {
-            "MATRICULA": encontrar_coluna(df_ipeo, "MATRICULA"),
+            "NOME": encontrar_coluna(df_ipeo, "NOME FUNCIONARIO"),
             "MES": encontrar_coluna(df_ipeo, "MES"),
         }
 
