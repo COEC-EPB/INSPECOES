@@ -11,37 +11,51 @@ def home():
     return "API online 🚀"
 
 
+# 🔹 NORMALIZAR TEXTO
+def limpar_texto(texto):
+    texto = str(texto).strip().upper()
+    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
+    return texto
+
+
 # 🔹 NORMALIZAR COLUNAS
 def normalizar_colunas(df):
-    def limpar(col):
-        col = str(col).strip().upper()
-        col = unicodedata.normalize('NFKD', col).encode('ASCII', 'ignore').decode('ASCII')
-        return col
-    df.columns = [limpar(c) for c in df.columns]
+    df.columns = [limpar_texto(c) for c in df.columns]
     return df
 
 
 # 🔹 DETECTAR HEADER AUTOMATICAMENTE
 def ler_excel_corrigido(file):
-
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
 
     for i, row in df_raw.iterrows():
-        valores = row.astype(str).str.upper()
+        valores = row.astype(str).apply(limpar_texto)
 
         if valores.str.contains("MATRICULA").any():
             header_row = i
             break
 
     if header_row is None:
-        raise ValueError("❌ Não encontrou linha de cabeçalho com 'MATRICULA'")
+        raise Exception("Não encontrou cabeçalho com MATRICULA")
 
     df = pd.read_excel(file, header=header_row)
     df = normalizar_colunas(df)
 
     return df
+
+
+# 🔹 ENCONTRAR COLUNA POR APROXIMAÇÃO
+def encontrar_coluna(df, nome):
+    nome = limpar_texto(nome).replace(" ", "")
+
+    for col in df.columns:
+        c = limpar_texto(col).replace(" ", "")
+        if nome in c:
+            return col
+
+    return None
 
 
 @app.route('/processar', methods=['POST'])
@@ -64,48 +78,83 @@ def processar():
         # 🔹 IPEO
         df_ipeo = ler_excel_corrigido(ipeo_file)
 
-        # 🔍 DEBUG
         print("COLUNAS MESES:", df_meses.columns.tolist())
         print("COLUNAS IPEO:", df_ipeo.columns.tolist())
 
-        # 🔹 VALIDAÇÃO
-        obrigatorias = ["MATRICULA", "MES"]
+        # 🔹 MAPEAR COLUNAS IMPORTANTES
+        mapa = {
+            "MATRICULA": encontrar_coluna(df_meses, "MATRICULA"),
+            "MES": encontrar_coluna(df_meses, "MES"),
+        }
 
-        for col in obrigatorias:
-            if col not in df_meses.columns:
-                return jsonify({"erro": f"Coluna '{col}' não encontrada nos arquivos de meses"}), 400
-            if col not in df_ipeo.columns:
-                return jsonify({"erro": f"Coluna '{col}' não encontrada no IPEO"}), 400
+        mapa_ipeo = {
+            "MATRICULA": encontrar_coluna(df_ipeo, "MATRICULA"),
+            "MES": encontrar_coluna(df_ipeo, "MES"),
+        }
+
+        if not mapa["MATRICULA"] or not mapa["MES"]:
+            return jsonify({"erro": "Colunas MATRICULA/MES não encontradas nos meses"}), 400
+
+        if not mapa_ipeo["MATRICULA"] or not mapa_ipeo["MES"]:
+            return jsonify({"erro": "Colunas MATRICULA/MES não encontradas no IPEO"}), 400
+
+        # 🔹 RENOMEAR PARA PADRÃO
+        df_meses = df_meses.rename(columns={
+            mapa["MATRICULA"]: "MATRICULA",
+            mapa["MES"]: "MES"
+        })
+
+        df_ipeo = df_ipeo.rename(columns={
+            mapa_ipeo["MATRICULA"]: "MATRICULA",
+            mapa_ipeo["MES"]: "MES"
+        })
 
         # 🔹 MERGE
-        df = df_meses.merge(
-            df_ipeo,
-            on=["MATRICULA", "MES"],
-            how="inner"
-        )
+        df = df_meses.merge(df_ipeo, on=["MATRICULA", "MES"], how="inner")
 
-        # 🔹 COLUNAS DESEJADAS
-        colunas_desejadas = [
-            "DI", "ROE", "RNT", "IOC", "ISF", "ROV",
-            "EMPRESA", "MES", "REGIONAL", "POLO PRESTADOR",
-            "MATRICULA", "NOME FUNCIONARIO", "IPEO",
-            "PRODUTIVIDADE", "EFICIENCIA", "UTILIZACAO", "TMS"
-        ]
+        print("COLUNAS APÓS MERGE:", df.columns.tolist())
 
-        colunas_existentes = [c for c in colunas_desejadas if c in df.columns]
+        # 🔹 MAPEAR TODAS AS COLUNAS NECESSÁRIAS
+        def get(nome):
+            return encontrar_coluna(df, nome)
 
-        if not colunas_existentes:
-            return jsonify({"erro": "Nenhuma coluna esperada foi encontrada após o merge"}), 400
+        colunas_map = {
+            "EMPRESA": get("EMPRESA"),
+            "MES": "MES",
+            "REGIONAL": get("REGIONAL"),
+            "POLO": get("POLO"),
+            "MATRICULA": "MATRICULA",
+            "NOME": get("NOME"),
+            "IPEO": get("IPEO"),
+            "DI": get("DI"),
+            "ROE": get("ROE"),
+            "RNT": get("RNT"),
+            "IOC": get("IOC"),
+            "ISF": get("ISF"),
+            "ROV": get("ROV"),
+            "PROD": get("PROD"),
+            "EFIC": get("EFIC"),
+            "UTIL": get("UTIL"),
+            "TMS": get("TMS"),
+        }
 
+        print("MAPEAMENTO FINAL:", colunas_map)
+
+        # 🔹 FILTRAR COLUNAS EXISTENTES
+        colunas_existentes = [c for c in colunas_map.values() if c is not None]
         df = df[colunas_existentes]
 
-        # 🔹 AGRUPAMENTO
+        # 🔹 GROUP BY
         colunas_grupo = [
-            "EMPRESA", "MES", "REGIONAL", "POLO PRESTADOR",
-            "MATRICULA", "NOME FUNCIONARIO"
+            colunas_map["EMPRESA"],
+            colunas_map["MES"],
+            colunas_map["REGIONAL"],
+            colunas_map["POLO"],
+            colunas_map["MATRICULA"],
+            colunas_map["NOME"],
         ]
 
-        colunas_grupo = [c for c in colunas_grupo if c in df.columns]
+        colunas_grupo = [c for c in colunas_grupo if c is not None]
 
         df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
 
@@ -116,7 +165,7 @@ def processar():
         return send_file(output, as_attachment=True)
 
     except Exception as e:
-        print("ERRO:", str(e))
+        print("ERRO REAL:", str(e))
         return jsonify({"erro": str(e)}), 500
 
 
