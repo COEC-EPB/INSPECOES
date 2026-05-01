@@ -24,7 +24,7 @@ def normalizar_colunas(df):
     return df
 
 
-# 🔹 BUSCAR COLUNA FLEXÍVEL
+# 🔹 BUSCA FLEXÍVEL DE COLUNA
 def col(df, nome):
     nome = nome.upper()
     for c in df.columns:
@@ -33,7 +33,7 @@ def col(df, nome):
     return None
 
 
-# 🔹 LER EXCEL
+# 🔹 LER EXCEL COM HEADER INTELIGENTE
 def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
@@ -56,7 +56,7 @@ def ler_excel(file):
     return df
 
 
-# 🔹 EXTRAIR MES
+# 🔹 EXTRAIR MÊS
 def extrair_mes(nome):
     nome = nome.upper()
     meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
@@ -68,7 +68,7 @@ def extrair_mes(nome):
     return None
 
 
-# 🔹 SEPARAR FUNCIONARIO
+# 🔹 SEPARAR FUNCIONÁRIO
 def separar_funcionario(df, col_func):
     split = df[col_func].astype(str).str.split("-", n=1, expand=True)
 
@@ -85,7 +85,7 @@ def padronizar_chaves(df):
     return df
 
 
-# 🔥 LIMPAR NUMÉRICOS (REMOVE % E VÍRGULA)
+# 🔹 LIMPAR NÚMEROS (% e vírgula)
 def limpar_numericos(df):
     for c in df.columns:
         if df[c].dtype == "object":
@@ -96,9 +96,7 @@ def limpar_numericos(df):
                 .str.replace(",", ".", regex=False)
                 .str.strip()
             )
-            # tenta converter
             df[c] = pd.to_numeric(df[c], errors="ignore")
-
     return df
 
 
@@ -158,7 +156,7 @@ def processar():
 
         colunas_grupo = [c for c in colunas_grupo if c]
 
-        # 🔥 AGG DINÂMICO (NUNCA MAIS QUEBRA)
+        # 🔥 AGG DINÂMICO
         agg_dict = {}
 
         for c in df.columns:
@@ -171,47 +169,49 @@ def processar():
 
         df_final = df.groupby(colunas_grupo, as_index=False).agg(agg_dict)
 
-        # 🔹 RENOMEAR
+        print("COLUNAS FINAL:", df_final.columns.tolist())
+
+        # 🔥 FUNÇÃO FLEXÍVEL PRA PEGAR COLUNA
+        def get_col(nome):
+            for c in df_final.columns:
+                if nome in c:
+                    return c
+            return None
+
+        # 🔥 FILTRO FINAL (GARANTE TODAS)
+        colunas_final = [
+            get_col("EMPRESA"),
+            get_col("MES"),
+            get_col("REGIONAL"),
+            get_col("PRESTADOR"),
+            get_col("MATRICULA"),
+            get_col("NOME"),
+            get_col("UTILIZACAO"),
+            get_col("PRODUTIVIDADE"),
+            get_col("EFICIENCIA"),
+            get_col("TMS"),
+            get_col("DI"),
+            get_col("ROE"),
+            get_col("RNT"),
+            get_col("IOC"),
+            get_col("ISF"),
+            get_col("ROV"),
+            get_col("IPEO"),
+            get_col("POLO")
+        ]
+
+        colunas_final = [c for c in colunas_final if c]
+
+        df_final = df_final[colunas_final]
+
+        # 🔹 RENOMEAR BONITO
         df_final = df_final.rename(columns={
             "MES": "MÊS",
             "MATRICULA": "MATRÍCULA",
             "% PRODUTIVIDADE": "% Produtividade",
             "% EFICIENCIA": "% Eficiência",
-            "% UTILIZACAO": "% Utilização",
-            "% DI": "% DI",
-            "% ROE": "% ROE",
-            "% RNT": "% RNT",
-            "% IOC": "% IOC",
-            "% ISF": "% ISF",
-            "% ROV": "% ROV",
-            "% IPEO": "% IPEO"
+            "% UTILIZACAO": "% Utilização"
         })
-
-        colunas_final = [
-            "EMPRESA",
-            "MÊS",
-            "REGIONAL",
-            "PRESTADOR",
-            "MATRÍCULA",
-            "NOME",
-            "% Utilização",
-            "% Produtividade",
-            "% Eficiência",
-            "TMS",
-            "% DI",
-            "% ROE",
-            "% RNT",
-            "% IOC",
-            "% ISF",
-            "% ROV",
-            "% IPEO",
-            "POLO"
-        ]
-        
-        # pega só as que existem (evita erro)
-        colunas_existentes = [c for c in colunas_final if c in df_final.columns]
-        
-        df_final = df_final[colunas_existentes]
 
         # 🔥 EXPORTAR EXCEL
         output = io.BytesIO()
