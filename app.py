@@ -128,6 +128,13 @@ def processar():
 
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA", "MES"], how="left")
 
+        colunas_ipeo = ["DI","ROE","RNT","IOC","ISF","ROV","IPEO"]
+
+        for c in colunas_ipeo:
+            col_real = col(df, c)
+            if col_real:
+                df[col_real] = df[col_real].fillna(0)
+
         if df.empty:
             return jsonify({"erro": "Merge vazio"}), 400
 
