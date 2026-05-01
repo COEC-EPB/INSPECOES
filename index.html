@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Processador IPEO</title>
+<title>Sistema de Processamento</title>
 
 <style>
 body {
@@ -24,45 +23,93 @@ body {
   text-align: center;
 }
 
-input, button {
+button {
   width: 100%;
   margin-top: 10px;
   padding: 10px;
-}
-
-button {
-  background: #22c55e;
   border: none;
   color: white;
   cursor: pointer;
+  border-radius: 6px;
+}
+
+.ipeo { background: #22c55e; }
+.ponto { background: #3b82f6; }
+.voltar { background: #64748b; }
+
+input {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
 }
 
 #status {
   margin-top: 10px;
 }
 </style>
-
 </head>
 
 <body>
 
 <div class="box">
-  <h2>📊 Processador IPEO</h2>
 
-<label>📂 Arquivos MIP</label> <input type="file" id="meses" multiple>
+  <!-- 🔹 MENU -->
+  <div id="menu">
+    <h2>⚙️ Sistema</h2>
 
-<label>📂 Arquivo IPEO</label> <input type="file" id="ipeo">
+    <button class="ipeo" onclick="mostrar('ipeo')">📊 Processador IPEO</button>
+    <button class="ponto" onclick="mostrar('ponto')">⏱️ Processador de Ponto</button>
+  </div>
 
-<button onclick="enviar()">Processar</button>
 
-  <div id="status"></div>
+  <!-- 🔹 IPEO -->
+  <div id="ipeo" style="display:none;">
+    <h2>📊 Processador IPEO</h2>
+
+    <label>📂 Arquivos MIP</label>
+    <input type="file" id="meses" multiple>
+
+    <label>📂 Arquivo IPEO</label>
+    <input type="file" id="ipeoFile">
+
+    <button class="ipeo" onclick="enviar()">Processar</button>
+    <button class="voltar" onclick="voltar()">⬅ Voltar</button>
+
+    <div id="status"></div>
+  </div>
+
+
+  <!-- 🔹 PONTO -->
+  <div id="ponto" style="display:none;">
+    <h2>⏱️ Processador de Ponto</h2>
+
+    <p>🚧 Em desenvolvimento...</p>
+
+    <button class="voltar" onclick="voltar()">⬅ Voltar</button>
+  </div>
+
 </div>
 
+
 <script>
+// 🔄 troca de tela
+function mostrar(tela) {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById(tela).style.display = "block";
+}
+
+function voltar() {
+  document.getElementById("menu").style.display = "block";
+  document.getElementById("ipeo").style.display = "none";
+  document.getElementById("ponto").style.display = "none";
+}
+
+
+// 🚀 envio IPEO
 async function enviar() {
 
   const meses = document.getElementById("meses").files;
-  const ipeo = document.getElementById("ipeo").files[0];
+  const ipeo = document.getElementById("ipeoFile").files[0];
   const status = document.getElementById("status");
 
   if (meses.length === 0 || !ipeo) {
