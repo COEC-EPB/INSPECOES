@@ -178,27 +178,38 @@ def processar():
                     return c
             return None
 
+                
         
-
-        # 🔹 RENOMEAR BONITO
-        df_final = df_final.rename(columns={
+        # 🔥 PADRONIZAR NOMES PRIMEIRO
+        df_final.columns = df_final.columns.str.strip()
+        
+        # 🔥 MAPA FIXO DE COLUNAS
+        mapa = {
+            "EMPRESA": "EMPRESA",
             "MES": "MÊS",
+            "REGIONAL": "REGIONAL",
+            "PRESTADOR": "PRESTADOR",
             "MATRICULA": "MATRÍCULA",
+            "NOME": "NOME FUNCIONÁRIO",
+            "% UTILIZACAO": "% Utilização",
             "% PRODUTIVIDADE": "% Produtividade",
             "% EFICIENCIA": "% Eficiência",
-            "% UTILIZACAO": "% Utilização",
+            "TMS": "TMS",
             "% DI": "% DI",
             "% ROE": "% ROE",
-            "% ROV": "% ROV",
-            "% ISF": "% ISF",
             "% RNT": "% RNT",
             "% IOC": "% IOC",
-            "% IPEO": "% IPEO"
-        })
-
-        # 🔥 FILTRO FINAL (GARANTE TODAS)
+            "% ISF": "% ISF",
+            "% ROV": "% ROV",
+            "% IPEO": "% IPEO",
+            "POLO": "POLO"
+        }
         
-        colunas_desejadas = [
+        # 🔥 RENOMEAR
+        df_final = df_final.rename(columns=mapa)
+        
+        # 🔥 ORDEM FINAL FIXA
+        colunas_final = [
             "EMPRESA",
             "MÊS",
             "REGIONAL",
@@ -219,20 +230,12 @@ def processar():
             "POLO"
         ]
         
-        # Cria um dicionário normalizado -> original
-        lookup = {norm(c): c for c in df_final.columns}
+        # 🔥 GARANTIR QUE TODAS EXISTEM
+        for c in colunas_final:
+            if c not in df_final.columns:
+                df_final[c] = None
         
-        cols_final = []
-        for c in colunas_desejadas:
-            key = norm(c)
-            if key in lookup:
-                cols_final.append(lookup[key])
-        
-        df_final = df_final[cols_final]
-
-
-        colunas_final = [c for c in colunas_final if c]
-
+        # 🔥 APLICAR ORDEM FINAL
         df_final = df_final[colunas_final]
 
         # 🔥 EXPORTAR EXCEL
