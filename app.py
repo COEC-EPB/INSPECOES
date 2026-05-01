@@ -197,26 +197,39 @@ def processar():
         })
 
         # 🔥 FILTRO FINAL (GARANTE TODAS)
-        colunas_final = [
-            get_col("EMPRESA"),
-            get_col("MES"),
-            get_col("REGIONAL"),
-            get_col("PRESTADOR"),
-            get_col("MATRICULA"),
-            get_col("NOME"),
-            get_col("UTILIZACAO"),
-            get_col("PRODUTIVIDADE"),
-            get_col("EFICIENCIA"),
-            get_col("TMS"),
-            get_col("DI"),
-            get_col("ROE"),
-            get_col("RNT"),
-            get_col("IOC"),
-            get_col("ISF"),
-            get_col("ROV"),
-            get_col("IPEO"),
-            get_col("POLO")
+        
+        colunas_desejadas = [
+            "EMPRESA",
+            "MÊS",
+            "REGIONAL",
+            "PRESTADOR",
+            "MATRÍCULA",
+            "NOME FUNCIONÁRIO",
+            "% Utilização",
+            "% Produtividade",
+            "% Eficiência",
+            "TMS",
+            "% DI",
+            "% ROE",
+            "% RNT",
+            "% IOC",
+            "% ISF",
+            "% ROV",
+            "% IPEO",
+            "POLO"
         ]
+        
+        # Cria um dicionário normalizado -> original
+        lookup = {norm(c): c for c in df_final.columns}
+        
+        cols_final = []
+        for c in colunas_desejadas:
+            key = norm(c)
+            if key in lookup:
+                cols_final.append(lookup[key])
+        
+        df_final = df_final[cols_final]
+
 
         colunas_final = [c for c in colunas_final if c]
 
