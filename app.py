@@ -97,13 +97,22 @@ def padronizar_chaves(df):
 def limpar_numericos(df):
     for c in df.columns:
         if df[c].dtype == "object":
+
+            tem_percent = df[c].astype(str).str.contains("%").any()
+
             df[c] = (
                 df[c].astype(str)
                 .str.replace("%","", regex=False)
                 .str.replace(",",".", regex=False)
                 .str.strip()
             )
+
             df[c] = pd.to_numeric(df[c], errors="ignore")
+
+            # 🔥 CORREÇÃO CRÍTICA
+            if tem_percent:
+                df[c] = df[c] / 100
+
     return df
 
 
