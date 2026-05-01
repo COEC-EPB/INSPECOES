@@ -65,9 +65,24 @@ def extrair_mes(nome):
 
 # 🔹 SEPARAR FUNCIONÁRIO
 def separar_funcionario(df, col_func):
-    split = df[col_func].astype(str).str.split("-", n=1, expand=True)
-    df["MATRICULA"] = split[0].str.strip().str.replace(".0", "", regex=False)
-    df["NOME"] = split[1].str.strip() if split.shape[1] > 1 else ""
+    # garante string
+    df[col_func] = df[col_func].astype(str)
+
+    # divide em 2 partes: matrícula e nome
+    split = df[col_func].str.split(" - ", n=1, expand=True)
+
+    df["MATRICULA"] = (
+        split[0]
+        .str.strip()
+        .str.replace(".0", "", regex=False)
+    )
+
+    df["NOME"] = (
+        split[1]
+        .str.strip()
+        if split.shape[1] > 1 else ""
+    )
+
     return df
 
 
