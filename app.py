@@ -35,29 +35,34 @@ def col(df, nome):
 
 # 🔹 LER EXCEL (HEADER AUTOMÁTICO)
 def ler_excel(file):
+
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
-    melhor_score = 0
 
     for i, row in df_raw.iterrows():
-        score = row.astype(str).str.strip().ne("").sum()
+        valores = row.astype(str).str.upper()
 
-        if score > melhor_score:
-            melhor_score = score
+        # 🔥 procurar linha REAL de header
+        if (
+            valores.str.contains("FUNC").any() and
+            valores.str.contains("PROD").any()
+        ):
             header_row = i
+            break
 
+    # fallback seguro
     if header_row is None:
-        raise ValueError("Não conseguiu detectar header")
+        print("⚠️ HEADER NÃO ENCONTRADO → tentando linha 5")
+        header_row = 5
 
     df = pd.read_excel(file, header=header_row)
     df = normalizar_colunas(df)
 
-    print("✅ HEADER:", header_row)
+    print("✅ HEADER CORRETO:", header_row)
     print("📊 COLUNAS:", df.columns.tolist())
 
     return df
-
 
 # 🔹 EXTRAIR MES DO NOME DO ARQUIVO
 def extrair_mes(nome):
