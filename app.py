@@ -24,7 +24,7 @@ def normalizar_colunas(df):
     return df
 
 
-# 🔹 BUSCA FLEXÍVEL DE COLUNA
+# 🔹 BUSCA FLEXÍVEL
 def col(df, nome):
     nome = nome.upper()
     for c in df.columns:
@@ -33,12 +33,11 @@ def col(df, nome):
     return None
 
 
-# 🔹 LER EXCEL COM HEADER INTELIGENTE
+# 🔹 LER EXCEL
 def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
-
     for i, row in df_raw.iterrows():
         if row.astype(str).str.upper().str.contains("FUNCIONARIO").any():
             header_row = i
@@ -50,18 +49,14 @@ def ler_excel(file):
     df = pd.read_excel(file, header=header_row)
     df = normalizar_colunas(df)
 
-    print("HEADER:", header_row)
-    print("COLUNAS:", df.columns.tolist())
-
     return df
 
 
 # 🔹 EXTRAIR MÊS
 def extrair_mes(nome):
     nome = nome.upper()
-    meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
-             "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"]
-
+    meses = ["JAN","FEV","MAR","ABR","MAI","JUN",
+             "JUL","AGO","SET","OUT","NOV","DEZ"]
     for m in meses:
         if m in nome:
             return m
@@ -71,10 +66,8 @@ def extrair_mes(nome):
 # 🔹 SEPARAR FUNCIONÁRIO
 def separar_funcionario(df, col_func):
     split = df[col_func].astype(str).str.split("-", n=1, expand=True)
-
     df["MATRICULA"] = split[0].str.strip().str.replace(".0", "", regex=False)
     df["NOME"] = split[1].str.strip() if split.shape[1] > 1 else ""
-
     return df
 
 
@@ -85,22 +78,20 @@ def padronizar_chaves(df):
     return df
 
 
-# 🔹 LIMPAR NÚMEROS (% e vírgula)
+# 🔹 LIMPAR NUMÉRICOS
 def limpar_numericos(df):
     for c in df.columns:
         if df[c].dtype == "object":
             df[c] = (
-                df[c]
-                .astype(str)
-                .str.replace("%", "", regex=False)
-                .str.replace(",", ".", regex=False)
+                df[c].astype(str)
+                .str.replace("%","", regex=False)
+                .str.replace(",",".", regex=False)
                 .str.strip()
             )
             df[c] = pd.to_numeric(df[c], errors="ignore")
     return df
 
 
-# 🔥 ROTA PRINCIPAL
 @app.route('/processar', methods=['POST'])
 def processar():
     try:
@@ -123,7 +114,7 @@ def processar():
 
             col_func = col(df, "FUNCIONARIO")
             if not col_func:
-                return jsonify({"erro": f"FUNCIONARIO não encontrado em {f.filename}"}), 400
+                return jsonify({"erro": f"FUNCIONARIO não encontrado"}), 400
 
             df = separar_funcionario(df, col_func)
             lista.append(df)
@@ -140,25 +131,34 @@ def processar():
         if df.empty:
             return jsonify({"erro": "Merge vazio"}), 400
 
-        # 🔥 LIMPAR NÚMEROS
+        # 🔥 RESOLVER _x _y
+        for c in list(df.columns):
+            if c.endswith("_x"):
+                base = c[:-2]
+                y = base + "_y"
+                if y in df.columns:
+                    df[base] = df[c].combine_first(df[y])
+                else:
+                    df[base] = df[c]
+
+        df = df[[c for c in df.columns if not c.endswith("_x") and not c.endswith("_y")]]
+
+        # 🔥 LIMPAR NUMÉRICOS
         df = limpar_numericos(df)
 
-        # 🔹 COLUNAS DE AGRUPAMENTO
+        # 🔹 AGRUPAMENTO
         colunas_grupo = [
-            col(df, "EMPRESA"),
+            col(df,"EMPRESA"),
             "MES",
-            col(df, "REGIONAL"),
-            col(df, "PRESTADOR"),
-            col(df, "POLO"),
+            col(df,"REGIONAL"),
+            col(df,"PRESTADOR"),
+            col(df,"POLO"),
             "MATRICULA",
-            col(df, "NOME")
+            col(df,"NOME")
         ]
-
         colunas_grupo = [c for c in colunas_grupo if c]
 
-        # 🔥 AGG DINÂMICO
         agg_dict = {}
-
         for c in df.columns:
             if c in colunas_grupo:
                 continue
@@ -169,80 +169,46 @@ def processar():
 
         df_final = df.groupby(colunas_grupo, as_index=False).agg(agg_dict)
 
-        print("COLUNAS FINAL:", df_final.columns.tolist())
-
-        # 🔥 FUNÇÃO FLEXÍVEL PRA PEGAR COLUNA
-        def get_col(nome):
+        # 🔥 GARANTIR COLUNAS EXATAS
+        def get(nome):
             for c in df_final.columns:
                 if nome in c:
                     return c
             return None
 
-                
-        
-        # 🔥 PADRONIZAR NOMES PRIMEIRO
-        df_final.columns = df_final.columns.str.strip()
-        
-        # 🔥 MAPA FIXO DE COLUNAS
-        mapa = {
-            "EMPRESA": "EMPRESA",
-            "MES": "MÊS",
-            "REGIONAL": "REGIONAL",
-            "PRESTADOR": "PRESTADOR",
-            "MATRICULA": "MATRÍCULA",
-            "NOME": "NOME FUNCIONÁRIO",
-            "% UTILIZACAO": "% Utilização",
-            "% PRODUTIVIDADE": "% Produtividade",
-            "% EFICIENCIA": "% Eficiência",
-            "TMS": "TMS",
-            "% DI": "% DI",
-            "% ROE": "% ROE",
-            "% RNT": "% RNT",
-            "% IOC": "% IOC",
-            "% ISF": "% ISF",
-            "% ROV": "% ROV",
-            "% IPEO": "% IPEO",
-            "POLO": "POLO"
+        colunas = {
+            "EMPRESA": get("EMPRESA"),
+            "MÊS": get("MES"),
+            "REGIONAL": get("REGIONAL"),
+            "PRESTADOR": get("PRESTADOR"),
+            "MATRÍCULA": get("MATRICULA"),
+            "NOME FUNCIONÁRIO": get("NOME"),
+            "% Utilização": get("UTILIZACAO"),
+            "% Produtividade": get("PRODUTIVIDADE"),
+            "% Eficiência": get("EFICIENCIA"),
+            "TMS": get("TMS"),
+            "% DI": get("DI"),
+            "% ROE": get("ROE"),
+            "% RNT": get("RNT"),
+            "% IOC": get("IOC"),
+            "% ISF": get("ISF"),
+            "% ROV": get("ROV"),
+            "% IPEO": get("IPEO"),
+            "POLO": get("POLO")
         }
-        
-        # 🔥 RENOMEAR
-        df_final = df_final.rename(columns=mapa)
-        
-        # 🔥 ORDEM FINAL FIXA
-        colunas_final = [
-            "EMPRESA",
-            "MÊS",
-            "REGIONAL",
-            "PRESTADOR",
-            "MATRÍCULA",
-            "NOME FUNCIONÁRIO",
-            "% Utilização",
-            "% Produtividade",
-            "% Eficiência",
-            "TMS",
-            "% DI",
-            "% ROE",
-            "% RNT",
-            "% IOC",
-            "% ISF",
-            "% ROV",
-            "% IPEO",
-            "POLO"
-        ]
-        
-        # 🔥 GARANTIR QUE TODAS EXISTEM
-        for c in colunas_final:
-            if c not in df_final.columns:
-                df_final[c] = None
-        
-        # 🔥 APLICAR ORDEM FINAL
-        df_final = df_final[colunas_final]
 
-        # 🔥 EXPORTAR EXCEL
+        df_saida = pd.DataFrame()
+
+        for nome, c in colunas.items():
+            if c:
+                df_saida[nome] = df_final[c]
+            else:
+                df_saida[nome] = None
+
+        # 🔹 EXPORTAR
         output = io.BytesIO()
-
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            df_final.to_excel(writer, index=False)
+            df_saida.to_excel(writer, index=False)
 
         output.seek(0)
 
