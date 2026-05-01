@@ -160,6 +160,16 @@ def processar():
 
         df = df.fillna(0)
 
+        colunas_numericas = [
+            "UTILIZACAO", "PRODUTIVIDADE", "EFICIENCIA", "TMS",
+            "DI", "ROE", "RNT", "IOC", "ISF", "ROV", "IPEO"
+        ]
+
+        for col_num in colunas_numericas:
+            col_real = col(df, col_num)
+            if col_real:
+                df[col_real] = pd.to_numeric(df[col_real], errors="coerce")
+
         df_final = df.groupby(colunas_grupo, as_index=False).mean(numeric_only=True)
 
         mapa_saida = {
