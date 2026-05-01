@@ -188,16 +188,18 @@ def processar():
         ordem_existente = [c for c in ordem if c in df_final.columns]
         df_final = df_final[ordem_existente]
 
-        # 🔥 GERAR CSV EM MEMÓRIA (SEM TRAVAR)
-        output = io.StringIO()
-        df_final.to_csv(output, index=False)
-        output.seek(0)
+        output = io.BytesIO()
 
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df_final.to_excel(writer, index=False)
+        
+        output.seek(0)
+        
         return send_file(
-            io.BytesIO(output.getvalue().encode()),
-            mimetype="text/csv",
+            output,
             as_attachment=True,
-            download_name="resultado.csv"
+            download_name="resultado.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
     except Exception as e:
