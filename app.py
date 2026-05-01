@@ -227,7 +227,7 @@ def processar():
             "% Produtividade": get("PRODUTIVIDADE"),
             "% Eficiência": get("EFICIENCIA"),
             "TMS": get("TMS"),
-            "% DI": get("DI"),
+            "% DI": get("% DI"),
             "% ROE": get("ROE"),
             "% RNT": get("RNT"),
             "% IOC": get("IOC"),
