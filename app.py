@@ -24,7 +24,7 @@ def normalizar_colunas(df):
     return df
 
 
-# 🔹 BUSCA FLEXÍVEL DE COLUNA
+# 🔹 BUSCA FLEXÍVEL
 def col(df, nome):
     nome = nome.upper()
     for c in df.columns:
@@ -33,12 +33,11 @@ def col(df, nome):
     return None
 
 
-# 🔹 LER EXCEL COM HEADER INTELIGENTE
+# 🔹 LER EXCEL
 def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
     header_row = None
-
     for i, row in df_raw.iterrows():
         if row.astype(str).str.upper().str.contains("FUNCIONARIO").any():
             header_row = i
@@ -85,7 +84,7 @@ def padronizar_chaves(df):
     return df
 
 
-# 🔹 LIMPAR NÚMEROS (% e vírgula)
+# 🔹 LIMPAR NUMÉRICOS
 def limpar_numericos(df):
     for c in df.columns:
         if df[c].dtype == "object":
@@ -100,7 +99,6 @@ def limpar_numericos(df):
     return df
 
 
-# 🔥 ROTA PRINCIPAL
 @app.route('/processar', methods=['POST'])
 def processar():
     try:
@@ -140,10 +138,23 @@ def processar():
         if df.empty:
             return jsonify({"erro": "Merge vazio"}), 400
 
+        # 🔥 CORRIGIR _x e _y
+        for c in list(df.columns):
+            if c.endswith("_x"):
+                base = c[:-2]
+                y_col = base + "_y"
+
+                if y_col in df.columns:
+                    df[base] = df[c].combine_first(df[y_col])
+                else:
+                    df[base] = df[c]
+
+        df = df[[c for c in df.columns if not c.endswith("_x") and not c.endswith("_y")]]
+
         # 🔥 LIMPAR NÚMEROS
         df = limpar_numericos(df)
 
-        # 🔹 COLUNAS DE AGRUPAMENTO
+        # 🔹 AGRUPAMENTO
         colunas_grupo = [
             col(df, "EMPRESA"),
             "MES",
@@ -156,7 +167,6 @@ def processar():
 
         colunas_grupo = [c for c in colunas_grupo if c]
 
-        # 🔥 AGG DINÂMICO
         agg_dict = {}
 
         for c in df.columns:
@@ -171,14 +181,13 @@ def processar():
 
         print("COLUNAS FINAL:", df_final.columns.tolist())
 
-        # 🔥 FUNÇÃO FLEXÍVEL PRA PEGAR COLUNA
+        # 🔹 BUSCA FLEXÍVEL FINAL
         def get_col(nome):
             for c in df_final.columns:
                 if nome in c:
                     return c
             return None
 
-        # 🔥 FILTRO FINAL (GARANTE TODAS)
         colunas_final = [
             get_col("EMPRESA"),
             get_col("MES"),
@@ -201,10 +210,9 @@ def processar():
         ]
 
         colunas_final = [c for c in colunas_final if c]
-
         df_final = df_final[colunas_final]
 
-        # 🔹 RENOMEAR BONITO
+        # 🔹 RENOMEAR
         df_final = df_final.rename(columns={
             "MES": "MÊS",
             "MATRICULA": "MATRÍCULA",
@@ -213,9 +221,8 @@ def processar():
             "% UTILIZACAO": "% Utilização"
         })
 
-        # 🔥 EXPORTAR EXCEL
+        # 🔹 EXPORTAR
         output = io.BytesIO()
-
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_final.to_excel(writer, index=False)
 
