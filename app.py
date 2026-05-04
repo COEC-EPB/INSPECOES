@@ -186,6 +186,17 @@ def processar():
         # 🔥 LIMPAR NUMÉRICOS
         df = limpar_numericos(df)
 
+        colunas_percentuais = ["DI","ROE","RNT","IOC","ISF","ROV","IPEO"]
+
+        for nome in colunas_percentuais:
+            col_real = col(df, nome)
+            
+            if col_real:
+                # se tiver valor maior que 1 → divide por 100
+                df[col_real] = df[col_real].apply(
+                    lambda x: x / 100 if pd.notnull(x) and x > 1 else x
+                )
+
         # 🔹 AGRUPAMENTO
         colunas_grupo = [
             col(df,"EMPRESA"),
