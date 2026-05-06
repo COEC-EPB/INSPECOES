@@ -52,21 +52,32 @@ def extrair_mes(nome):
 
 
 # 🔹 SEPARAR FUNCIONARIO
-def separar(df):
-    col = next((c for c in df.columns if "FUNCIONARIO" in c), None)
+def separar(df, nome_arquivo=""):
+    # 🔍 tenta encontrar a coluna correta
+    possiveis = ["FUNCIONARIO", "FUNCIONÁRIO", "NOME", "COLABORADOR"]
+
+    col = None
+    for p in possiveis:
+        for c in df.columns:
+            if p in c:
+                col = c
+                break
+        if col:
+            break
 
     if not col:
-        raise Exception("Coluna FUNCIONARIO não encontrada")
+        print("COLUNAS DISPONÍVEIS:", df.columns.tolist())
+        raise Exception(f"Coluna de funcionário não encontrada no arquivo {nome_arquivo}")
 
     texto = df[col].astype(str)
 
-    # 🔥 extrai matrícula (números no início)
+    # 🔥 extrai matrícula
     df["MATRICULA"] = texto.str.extract(r"^(\d+)")[0]
 
-    # 🔥 extrai nome (tudo depois do hífen)
+    # 🔥 extrai nome
     df["NOME"] = texto.str.extract(r"-\s*(.*)")[0]
 
-    # 🔥 fallback caso não tenha hífen
+    # fallback
     df["NOME"] = df["NOME"].fillna(texto)
 
     return df
@@ -105,7 +116,7 @@ def processar():
             if not mes:
                 return jsonify({"erro": f"Mês não identificado no arquivo {f.filename}"}), 400
 
-            df = separar(df)
+            df = separar(df, f.filename)
             df["MES"] = mes
 
             lista.append(df)
