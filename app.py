@@ -194,7 +194,6 @@ def processar():
 
         colunas_grupo_base = [
             col(df,"EMPRESA"),
-            "MES",
             "MATRICULA",
             col(df,"NOME")
         ]
