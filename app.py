@@ -139,7 +139,12 @@ def processar():
             df = separar_funcionario(df, col_func)
             lista.append(df)
 
+        if not lista:
+            return jsonify({"erro": "Nenhum arquivo válido encontrado"}), 400
         df_meses = pd.concat(lista, ignore_index=True)
+        if "MES" not in df.columns:
+            df["MES"] = "SEM MES"
+        df["MES"] = df["MES"].astype(str).str.upper().str.strip()
         df_ipeo = ler_excel(ipeo_file)
 
         df_meses = padronizar_chaves(df_meses)
@@ -191,7 +196,7 @@ def processar():
             res = {}
 
             res["EMPRESA"] = grupo[col_empresa].iloc[0] if col_empresa in grupo else "SEM DADO"
-            res["MES"] = grupo["MES"].iloc[0]
+            res["MES"] = grupo["MES"].iloc[0] if "MES" in grupo else "SEM MES"
             res["MATRICULA"] = grupo["MATRICULA"].iloc[0]
             res["NOME"] = grupo[col_nome].iloc[0] if col_nome else ""
 
@@ -211,7 +216,13 @@ def processar():
 
             return pd.Series(res)
 
-        grupo_cols = ["MES", "MATRICULA"]
+        grupo_cols = ["MATRICULA"]
+
+        if "MES" in df.columns:
+            grupo_cols.insert(0, "MES")
+        else:
+            df["MES"] = "SEM MES"
+            grupo_cols.insert(0, "MES")
 
         if col_empresa:
             grupo_cols.insert(0, col_empresa)
