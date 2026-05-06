@@ -24,7 +24,7 @@ def normalizar_colunas(df):
     return df
 
 
-# 🔹 BUSCA FLEXÍVEL
+# 🔹 BUSCAR COLUNA FLEXÍVEL
 def col(df, nome):
     nome = nome.upper()
     for c in df.columns:
@@ -74,7 +74,7 @@ def separar_funcionario(df, col_func):
     return df
 
 
-# 🔹 PADRONIZAR CHAVES
+# 🔹 PADRONIZAR
 def padronizar_chaves(df):
     df["MATRICULA"] = df["MATRICULA"].astype(str).str.strip()
     df["MES"] = df["MES"].astype(str).str.upper().str.strip()
@@ -102,20 +102,14 @@ def limpar_numericos(df):
     return df
 
 
-# 🔥 ESCOLHER PRESTADOR POR PESO (TMS)
-def escolher_prestador(grupo, df):
-    col_prestador = col(df, "PRESTADOR")
-    col_tms = col(df, "TMS")
-
-    if not col_prestador:
-        return "SEM DADO"
-
-    if col_tms and col_tms in grupo:
+# 🔥 ESCOLHER PRESTADOR POR TMS
+def escolher_prestador(grupo, col_prestador, col_tms):
+    if col_prestador and col_tms and col_tms in grupo:
         resumo = grupo.groupby(col_prestador)[col_tms].sum()
         if not resumo.empty:
             return resumo.idxmax()
 
-    return grupo[col_prestador].dropna().iloc[0]
+    return grupo[col_prestador].dropna().iloc[0] if col_prestador else "SEM DADO"
 
 
 @app.route('/processar', methods=['POST'])
@@ -134,13 +128,13 @@ def processar():
 
             mes = extrair_mes(f.filename)
             if not mes:
-                return jsonify({"erro": f"Mês inválido"}), 400
+                continue
 
             df["MES"] = mes
 
             col_func = col(df, "FUNCIONARIO")
             if not col_func:
-                return jsonify({"erro": "FUNCIONARIO não encontrado"}), 400
+                continue
 
             df = separar_funcionario(df, col_func)
             lista.append(df)
@@ -154,26 +148,7 @@ def processar():
         # 🔹 MERGE
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA", "MES"], how="left")
 
-        col_empresa = col(df, "EMPRESA")
-
-        if not col_empresa:
-            # tenta alternativas comuns
-            for tentativa in ["SGLEMP", "EMP", "EMPRESA_X", "EMPRESA_Y"]:
-                col_empresa = col(df, tentativa)
-                if col_empresa:
-                    break
-        
-        if not col_empresa:
-            df["EMPRESA"] = "SEM DADO"
-            col_empresa = "EMPRESA"
-
-        # 🔹 PRESTADOR PROPRIO
-        col_prestador = col(df, "PRESTADOR")
-        if col_prestador:
-            df[col_prestador] = df[col_prestador].fillna("PROPRIO")
-            df.loc[df[col_prestador] == "", col_prestador] = "PROPRIO"
-
-        # 🔹 RESOLVER _x _y
+        # 🔹 RESOLVER COLUNAS DUPLICADAS
         for c in list(df.columns):
             if c.endswith("_x"):
                 base = c[:-2]
@@ -188,51 +163,47 @@ def processar():
 
         df = limpar_numericos(df)
 
-        # 🔹 CORRIGIR %
-        colunas_percentuais = ["DI","ROE","RNT","IOC","ISF","ROV","IPEO"]
+        # 🔹 COLUNAS FIXAS
+        col_empresa = col(df,"EMPRESA") or "EMPRESA"
+        col_nome = col(df,"NOME")
+        col_regional = col(df,"REGIONAL")
+        col_polo = col(df,"POLO")
+        col_prestador = col(df,"PRESTADOR")
+        col_tms = col(df,"TMS")
 
-        for nome in colunas_percentuais:
-            col_real = col(df, nome)
-            if col_real:
-                df[col_real] = df[col_real].apply(
-                    lambda x: x/100 if pd.notnull(x) and x > 1 else x
-                ).fillna(0)
+        if "EMPRESA" not in df.columns:
+            df["EMPRESA"] = "SEM DADO"
 
-        # 🔥 AGRUPAMENTO POR MÊS COM REGRA INTELIGENTE
-
+        # 🔥 AGRUPAMENTO
         def agregar(grupo):
-            resultado = {}
+            res = {}
 
-            resultado["EMPRESA"] = grupo[col(df,"EMPRESA")].iloc[0]
-            resultado["MES"] = grupo["MES"].iloc[0]
-            resultado["MATRICULA"] = grupo["MATRICULA"].iloc[0]
-            resultado["NOME"] = grupo[col(df,"NOME")].iloc[0]
+            res["EMPRESA"] = grupo[col_empresa].iloc[0]
+            res["MES"] = grupo["MES"].iloc[0]
+            res["MATRICULA"] = grupo["MATRICULA"].iloc[0]
+            res["NOME"] = grupo[col_nome].iloc[0] if col_nome else ""
 
-            # 🔥 PRESTADOR CORRETO
-            resultado["PRESTADOR"] = escolher_prestador(grupo, df)
-
-            # 🔹 REGIONAL E POLO
-            col_regional = col(df,"REGIONAL")
-            col_polo = col(df,"POLO")
+            # 🔥 PRESTADOR POR PESO
+            res["PRESTADOR"] = escolher_prestador(grupo, col_prestador, col_tms)
 
             if col_regional:
-                resultado["REGIONAL"] = grupo[col_regional].dropna().value_counts().idxmax()
+                res["REGIONAL"] = grupo[col_regional].dropna().value_counts().idxmax()
 
             if col_polo:
-                resultado["POLO"] = grupo[col_polo].dropna().value_counts().idxmax()
+                res["POLO"] = grupo[col_polo].dropna().value_counts().idxmax()
 
             # 🔹 MÉDIAS
-            for coluna in grupo.columns:
-                if pd.api.types.is_numeric_dtype(grupo[coluna]):
-                    resultado[coluna] = grupo[coluna].mean()
+            for c in grupo.columns:
+                if pd.api.types.is_numeric_dtype(grupo[c]):
+                    res[c] = grupo[c].mean()
 
-            return pd.Series(resultado)
+            return pd.Series(res)
 
         df_final = df.groupby([
-            col(df,"EMPRESA"),
+            col_empresa,
             "MES",
             "MATRICULA",
-            col(df,"NOME")
+            col_nome
         ]).apply(agregar).reset_index(drop=True)
 
         # 🔹 EXPORTAR
@@ -245,8 +216,7 @@ def processar():
         return send_file(
             output,
             as_attachment=True,
-            download_name="resultado.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            download_name="resultado.xlsx"
         )
 
     except Exception as e:
