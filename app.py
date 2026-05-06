@@ -32,6 +32,17 @@ def col(df, nome):
             return c
     return None
 
+def escolher_prestador(x):
+    prioridades = ["PROPRIO", "CONTROL", "TECCEL", "ENERGY"]
+
+    x = x.dropna().astype(str)
+
+    for p in prioridades:
+        if any(x.str.contains(p)):
+            return p
+
+    return x.iloc[0] if not x.empty else "SEM DADO"
+
 
 # 🔹 LER EXCEL
 def ler_excel(file):
@@ -139,6 +150,8 @@ def processar():
         # 🔹 MERGE
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA", "MES"], how="left")
 
+        
+
         # 🔹 PRESTADOR PROPRIO
         col_prestador = col(df, "PRESTADOR")
         if col_prestador:
@@ -198,16 +211,26 @@ def processar():
 
         agg_dict = {}
 
+        col_regional = col(df, "REGIONAL")
+        col_prestador = col(df, "PRESTADOR")
+        col_polo = col(df, "POLO")
+        
         for c in df.columns:
             if c in colunas_grupo_base:
                 continue
-
-            elif c in [col(df,"REGIONAL"), col(df,"PRESTADOR"), col(df,"POLO")]:
+        
+            # 🔥 PRESTADOR COM PRIORIDADE
+            elif c == col_prestador:
+                agg_dict[c] = escolher_prestador
+        
+            # 🔹 REGIONAL E POLO NORMAL
+            elif c in [col_regional, col_polo]:
                 agg_dict[c] = mais_frequente
-
+        
+            # 🔹 NUMÉRICOS
             elif pd.api.types.is_numeric_dtype(df[c]):
                 agg_dict[c] = "mean"
-
+        
             else:
                 agg_dict[c] = "first"
 
