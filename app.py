@@ -58,10 +58,16 @@ def separar(df):
     if not col:
         raise Exception("Coluna FUNCIONARIO não encontrada")
 
-    split = df[col].astype(str).str.split(" - ", n=1, expand=True)
+    texto = df[col].astype(str)
 
-    df["MATRICULA"] = split[0].str.strip()
-    df["NOME"] = split[1].str.strip()
+    # 🔥 extrai matrícula (números no início)
+    df["MATRICULA"] = texto.str.extract(r"^(\d+)")[0]
+
+    # 🔥 extrai nome (tudo depois do hífen)
+    df["NOME"] = texto.str.extract(r"-\s*(.*)")[0]
+
+    # 🔥 fallback caso não tenha hífen
+    df["NOME"] = df["NOME"].fillna(texto)
 
     return df
 
