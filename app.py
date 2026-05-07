@@ -183,29 +183,30 @@ def processar():
         # 🔥 AGRUPAMENTO
         def agregar(g):
             res = {}
-
-            res["EMPRESA"] = g.get("EMPRESA", ["SEM DADO"]).iloc[0]
-            res["MES"] = g["MES"].iloc[0]
-            res["MATRICULA"] = g["MATRICULA"].iloc[0]
-            res["NOME"] = g["NOME"].iloc[0]
-
-            # PRESTADOR POR TMS
-            if "TMS" in g and "PRESTADOR" in g:
+        
+            res["EMPRESA"] = g["EMPRESA"].iloc[0] if "EMPRESA" in g else "SEM DADO"
+            res["MES"] = g["MES"].iloc[0] if "MES" in g else "SEM MES"
+            res["MATRICULA"] = g["MATRICULA"].iloc[0] if "MATRICULA" in g else "SEM MATRICULA"
+            res["NOME"] = g["NOME"].iloc[0] if "NOME" in g else ""
+        
+            # 🔥 PRESTADOR POR TMS
+            if "TMS" in g.columns and "PRESTADOR" in g.columns:
                 resumo = g.groupby("PRESTADOR")["TMS"].sum()
                 res["PRESTADOR"] = resumo.idxmax()
             else:
                 res["PRESTADOR"] = "SEM DADO"
-
-            if "REGIONAL" in g:
-                res["REGIONAL"] = g["REGIONAL"].value_counts().idxmax()
-
-            if "POLO" in g:
-                res["POLO"] = g["POLO"].value_counts().idxmax()
-
+        
+            if "REGIONAL" in g.columns:
+                res["REGIONAL"] = g["REGIONAL"].dropna().value_counts().idxmax()
+        
+            if "POLO" in g.columns:
+                res["POLO"] = g["POLO"].dropna().value_counts().idxmax()
+        
+            # 🔹 MÉDIAS
             for c in g.columns:
                 if pd.api.types.is_numeric_dtype(g[c]):
                     res[c] = g[c].mean()
-
+        
             return pd.Series(res)
 
         df_final = df.groupby(["MES","MATRICULA","NOME"]).apply(agregar).reset_index(drop=True)
