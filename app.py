@@ -181,7 +181,7 @@ def processar():
         df = limpar(df)
 
         # 🔥 AGRUPAMENTO
-        def agregar(g):
+       def agregar(g):
             res = {}
         
             res["EMPRESA"] = g["EMPRESA"].iloc[0] if "EMPRESA" in g else "SEM DADO"
@@ -189,18 +189,27 @@ def processar():
             res["MATRICULA"] = g["MATRICULA"].iloc[0] if "MATRICULA" in g else "SEM MATRICULA"
             res["NOME"] = g["NOME"].iloc[0] if "NOME" in g else ""
         
-            # 🔥 PRESTADOR POR TMS
-            if "TMS" in g.columns and "PRESTADOR" in g.columns:
-                resumo = g.groupby("PRESTADOR")["TMS"].sum()
-                res["PRESTADOR"] = resumo.idxmax()
+            # 🔥 PRESTADOR SEGURO
+            if "PRESTADOR" in g.columns and "TMS" in g.columns:
+                g_valid = g.dropna(subset=["PRESTADOR", "TMS"])
+        
+                if not g_valid.empty:
+                    resumo = g_valid.groupby("PRESTADOR")["TMS"].sum()
+                    res["PRESTADOR"] = resumo.idxmax() if not resumo.empty else "SEM DADO"
+                else:
+                    res["PRESTADOR"] = "SEM DADO"
             else:
                 res["PRESTADOR"] = "SEM DADO"
         
+            # 🔹 REGIONAL
             if "REGIONAL" in g.columns:
-                res["REGIONAL"] = g["REGIONAL"].dropna().value_counts().idxmax()
+                r = g["REGIONAL"].dropna()
+                res["REGIONAL"] = r.value_counts().idxmax() if not r.empty else "SEM DADO"
         
+            # 🔹 POLO
             if "POLO" in g.columns:
-                res["POLO"] = g["POLO"].dropna().value_counts().idxmax()
+                p = g["POLO"].dropna()
+                res["POLO"] = p.value_counts().idxmax() if not p.empty else "SEM DADO"
         
             # 🔹 MÉDIAS
             for c in g.columns:
