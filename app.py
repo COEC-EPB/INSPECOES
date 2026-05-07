@@ -31,14 +31,46 @@ def normalizar(df):
 def ler_excel(file):
     df_raw = pd.read_excel(file, header=None)
 
-    for i, row in df_raw.iterrows():
-        if row.astype(str).str.contains("FUNCIONARIO", case=False).any():
-            df = pd.read_excel(file, header=i)
-            return normalizar(df)
+    header_row = None
 
-    # fallback
-    df = pd.read_excel(file)
-    return normalizar(df)
+    # 🔍 procura a linha que tem FUNCIONARIO ou MATRÍCULA
+    for i, row in df_raw.iterrows():
+        row_str = row.astype(str).str.upper()
+
+        if row_str.str.contains("FUNCIONARIO").any() or \
+           row_str.str.contains("MATRICULA").any():
+            header_row = i
+            break
+
+    # fallback inteligente
+    if header_row is None:
+        for i, row in df_raw.iterrows():
+            row_str = row.astype(str).str.upper()
+            if row_str.str.contains("%").any():
+                header_row = i
+                break
+
+    # último fallback
+    if header_row is None:
+        header_row = 2
+
+    print(f"✅ HEADER DETECTADO NA LINHA: {header_row}")
+
+    df = pd.read_excel(file, header=header_row)
+
+    # normalizar colunas
+    df.columns = [
+        unicodedata.normalize('NFKD', str(c))
+        .encode('ASCII', 'ignore')
+        .decode('ASCII')
+        .strip()
+        .upper()
+        for c in df.columns
+    ]
+
+    print("📊 COLUNAS CORRETAS:", df.columns.tolist())
+
+    return df
 
 
 # 🔹 EXTRAIR MES
