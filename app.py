@@ -168,6 +168,30 @@ def processar():
         if "MES" not in df_ipeo.columns:
             df_ipeo["MES"] = "SEM MES"
 
+
+        # 🔥 MAPA DE MESES
+        mapa_meses = {
+            "1": "JAN", "01": "JAN", 1: "JAN",
+            "2": "FEV", "02": "FEV", 2: "FEV",
+            "3": "MAR", "03": "MAR", 3: "MAR",
+            "4": "ABR", "04": "ABR", 4: "ABR",
+            "5": "MAI", "05": "MAI", 5: "MAI",
+            "6": "JUN", "06": "JUN", 6: "JUN",
+            "7": "JUL", "07": "JUL", 7: "JUL",
+            "8": "AGO", "08": "AGO", 8: "AGO",
+            "9": "SET", "09": "SET", 9: "SET",
+            "10": "OUT", 10: "OUT",
+            "11": "NOV", 11: "NOV",
+            "12": "DEZ", 12: "DEZ",
+        }
+        
+        # 🔹 PADRONIZAR MES IPEO
+        df_ipeo["MES"] = df_ipeo["MES"].astype(str).str.strip()
+        df_ipeo["MES"] = df_ipeo["MES"].map(mapa_meses).fillna(df_ipeo["MES"])
+
+        # 🔹 PADRONIZAR MES MIP
+        df_meses["MES"] = df_meses["MES"].astype(str).str.strip()
+        df_meses["MES"] = df_meses["MES"].map(mapa_meses).fillna(df_meses["MES"])
         # 🔥 PADRONIZAR
         df_meses["MATRICULA"] = df_meses["MATRICULA"].astype(str).str.strip()
         df_ipeo["MATRICULA"] = df_ipeo["MATRICULA"].astype(str).str.strip()
@@ -175,6 +199,11 @@ def processar():
         df_meses["MES"] = df_meses["MES"].astype(str)
         df_ipeo["MES"] = df_ipeo["MES"].astype(str)
 
+        print("MES MIP:", df_meses["MES"].unique())
+        print("MES IPEO:", df_ipeo["MES"].unique())
+
+        df_meses["MATRICULA"] = df_meses["MATRICULA"].astype(str).str.replace(".0","", regex=False).str.strip()
+        df_ipeo["MATRICULA"] = df_ipeo["MATRICULA"].astype(str).str.replace(".0","", regex=False).str.strip()
         # 🔥 MERGE
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA","MES"], how="left")
 
