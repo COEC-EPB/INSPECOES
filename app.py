@@ -181,7 +181,8 @@ def processar():
         df = limpar(df)
 
         # 🔥 AGRUPAMENTO
-       def agregar(g):
+       # 🔥 AGRUPAMENTO
+        def agregar(g):
             res = {}
         
             res["EMPRESA"] = g["EMPRESA"].iloc[0] if "EMPRESA" in g else "SEM DADO"
@@ -189,7 +190,6 @@ def processar():
             res["MATRICULA"] = g["MATRICULA"].iloc[0] if "MATRICULA" in g else "SEM MATRICULA"
             res["NOME"] = g["NOME"].iloc[0] if "NOME" in g else ""
         
-            # 🔥 PRESTADOR SEGURO
             if "PRESTADOR" in g.columns and "TMS" in g.columns:
                 g_valid = g.dropna(subset=["PRESTADOR", "TMS"])
         
@@ -201,17 +201,14 @@ def processar():
             else:
                 res["PRESTADOR"] = "SEM DADO"
         
-            # 🔹 REGIONAL
             if "REGIONAL" in g.columns:
                 r = g["REGIONAL"].dropna()
                 res["REGIONAL"] = r.value_counts().idxmax() if not r.empty else "SEM DADO"
         
-            # 🔹 POLO
             if "POLO" in g.columns:
                 p = g["POLO"].dropna()
                 res["POLO"] = p.value_counts().idxmax() if not p.empty else "SEM DADO"
         
-            # 🔹 MÉDIAS
             for c in g.columns:
                 if pd.api.types.is_numeric_dtype(g[c]):
                     res[c] = g[c].mean()
