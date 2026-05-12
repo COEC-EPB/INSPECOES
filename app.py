@@ -218,6 +218,9 @@ def processar():
         df_ipeo["MES"] = df_ipeo["MES"].astype(str).str.strip()
         df_ipeo["MES"] = df_ipeo["MES"].map(mapa_meses).fillna(df_ipeo["MES"])
 
+        df_ipeo["MES"] = df_ipeo["MES"].str.upper()
+        df_meses["MES"] = df_meses["MES"].str.upper()
+
         # 🔹 PADRONIZAR MES MIP
         df_meses["MES"] = df_meses["MES"].astype(str).str.strip()
         df_meses["MES"] = df_meses["MES"].map(mapa_meses).fillna(df_meses["MES"])
