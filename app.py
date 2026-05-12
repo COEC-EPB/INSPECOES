@@ -255,12 +255,11 @@ def processar():
         df = limpar(df)
         print("Merge concluído")
 
-        # 🔥 AGRUPAMENTO
-       # 🔥 AGRUPAMENTO
+                # 🔥 AGRUPAMENTO
         df = df.dropna(subset=["MATRICULA"])
 
         df = df[df["MATRICULA"] != ""]
-        
+
         # 🔥 COLUNAS NUMÉRICAS
         colunas_media = [
             "% PRODUTIVIDADE",
@@ -275,22 +274,39 @@ def processar():
             "% ROV",
             "% IPEO"
         ]
-        
-        colunas_existentes = [c for c in colunas_media if c in df.columns]
-        
+
+        colunas_existentes = [
+            c for c in colunas_media if c in df.columns
+        ]
+
         # 🔥 AGRUPAMENTO RÁPIDO
-       df_final = (
-            df.groupby(["MES", "MATRICULA", "NOME"], as_index=False)
+        df_final = (
+            df.groupby(
+                ["MES", "MATRICULA", "NOME"],
+                as_index=False
+            )
             .agg({
                 "EMPRESA": "first",
-        
-                "REGIONAL": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
-        
-                "POLO": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
-        
-                "PRESTADOR": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
-        
-                **{c: "mean" for c in colunas_existentes}
+
+                "REGIONAL": lambda x: (
+                    x.mode().iloc[0]
+                    if not x.mode().empty else ""
+                ),
+
+                "POLO": lambda x: (
+                    x.mode().iloc[0]
+                    if not x.mode().empty else ""
+                ),
+
+                "PRESTADOR": lambda x: (
+                    x.mode().iloc[0]
+                    if not x.mode().empty else ""
+                ),
+
+                **{
+                    c: "mean"
+                    for c in colunas_existentes
+                }
             })
         )
 
