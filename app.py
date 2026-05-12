@@ -241,6 +241,16 @@ def processar():
         
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA","MES"], how="left")
 
+        # 🔥 EMPRESA
+        if "EMPRESA_x" in df.columns:
+            df["EMPRESA"] = df["EMPRESA_x"]
+        
+        elif "EMPRESA_y" in df.columns:
+            df["EMPRESA"] = df["EMPRESA_y"]
+        
+        # 🔥 REMOVER SUFIXOS
+        df = df.drop(columns=[c for c in df.columns if c.endswith("_x") or c.endswith("_y")])
+
     
         df = limpar(df)
         print("Merge concluído")
