@@ -235,48 +235,51 @@ def processar():
         df_ipeo["MATRICULA"] = df_ipeo["MATRICULA"].astype(str).str.replace(".0","", regex=False).str.strip()
         # 🔥 MERGE
 
-        print(df_meses[["MES","MATRICULA","NOME"]].head())
-
-        print(df_ipeo[["MES","MATRICULA"]].head())
+        
         df = pd.merge(df_meses, df_ipeo, on=["MATRICULA","MES"], how="left")
 
-        print(df.head())
+    
         df = limpar(df)
+        print("Merge concluído")
 
         # 🔥 AGRUPAMENTO
        # 🔥 AGRUPAMENTO
-        def agregar(g):
-            res = {}
+        df = df.dropna(subset=["MATRICULA"])
+
+        df = df[df["MATRICULA"] != ""]
         
-            res["EMPRESA"] = g["EMPRESA"].iloc[0] if "EMPRESA" in g else "SEM DADO"
-            res["MES"] = g["MES"].iloc[0] if "MES" in g else "SEM MES"
-            res["MATRICULA"] = g["MATRICULA"].iloc[0] if "MATRICULA" in g else "SEM MATRICULA"
-            res["NOME"] = g["NOME"].iloc[0] if "NOME" in g else ""
+        # 🔥 COLUNAS NUMÉRICAS
+        colunas_media = [
+            "% PRODUTIVIDADE",
+            "% EFICIENCIA",
+            "% UTILIZACAO",
+            "TMS",
+            "% DI",
+            "% ROE",
+            "% RNT",
+            "% IOC",
+            "% ISF",
+            "% ROV",
+            "% IPEO"
+        ]
         
-            if "PRESTADOR" in g.columns and "TMS" in g.columns:
-                g_valid = g.dropna(subset=["PRESTADOR", "TMS"])
+        colunas_existentes = [c for c in colunas_media if c in df.columns]
         
-                if not g_valid.empty:
-                    resumo = g_valid.groupby("PRESTADOR")["TMS"].sum()
-                    res["PRESTADOR"] = resumo.idxmax() if not resumo.empty else "SEM DADO"
-                else:
-                    res["PRESTADOR"] = "SEM DADO"
-            else:
-                res["PRESTADOR"] = "SEM DADO"
+        # 🔥 AGRUPAMENTO RÁPIDO
+        df_final = (
+            df.groupby(["MES", "MATRICULA", "NOME"], as_index=False)
+            .agg({
+                "EMPRESA": "first",
+                "REGIONAL": "first",
+                "POLO": "first",
+                "PRESTADOR": "first",
+                **{c: "mean" for c in colunas_existentes}
+            })
+        )
+
+
+
         
-            if "REGIONAL" in g.columns:
-                r = g["REGIONAL"].dropna()
-                res["REGIONAL"] = r.value_counts().idxmax() if not r.empty else "SEM DADO"
-        
-            if "POLO" in g.columns:
-                p = g["POLO"].dropna()
-                res["POLO"] = p.value_counts().idxmax() if not p.empty else "SEM DADO"
-        
-            for c in g.columns:
-                if pd.api.types.is_numeric_dtype(g[c]):
-                    res[c] = g[c].mean()
-        
-            return pd.Series(res)
         df = df.dropna(subset=["MATRICULA"])
 
         df = df[df["MATRICULA"] != ""]    
