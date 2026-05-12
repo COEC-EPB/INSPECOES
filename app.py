@@ -279,25 +279,21 @@ def processar():
         colunas_existentes = [c for c in colunas_media if c in df.columns]
         
         # 🔥 AGRUPAMENTO RÁPIDO
-        df_final = (
+       df_final = (
             df.groupby(["MES", "MATRICULA", "NOME"], as_index=False)
             .agg({
                 "EMPRESA": "first",
-                "REGIONAL": "first",
-                "POLO": "first",
-                "PRESTADOR": "first",
+        
+                "REGIONAL": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
+        
+                "POLO": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
+        
+                "PRESTADOR": lambda x: x.mode().iloc[0] if not x.mode().empty else "",
+        
                 **{c: "mean" for c in colunas_existentes}
             })
         )
 
-
-
-        
-        df = df.dropna(subset=["MATRICULA"])
-
-        df = df[df["MATRICULA"] != ""]    
-
-        df_final = df.groupby(["MES","MATRICULA","NOME"]).apply(agregar).reset_index(drop=True)
 
         # 🔥 EXPORTAR
         output = io.BytesIO()
