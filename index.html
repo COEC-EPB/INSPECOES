@@ -608,7 +608,7 @@
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7 * escala);
       pdf.setTextColor(100, 116, 139);
-      pdf.text('Relatório fotográfico corporativo', x + 18 * escala, y + 13 * escala);
+      pdf.text('Relatório de Inspeções', x + 18 * escala, y + 13 * escala);
       pdf.setTextColor(31, 41, 55);
     }
 
@@ -641,7 +641,7 @@
       pdf.setFontSize(9);
       pdf.setTextColor(100, 116, 139);
       pdf.text(`Página ${paginaAtual}`, pageWidth - 18, pageHeight - 6, { align: 'right' });
-      pdf.text('Relatório fotográfico', 14, pageHeight - 6);
+      pdf.text('Relatório de Inspeções', 14, pageHeight - 6);
       pdf.setTextColor(31, 41, 55);
     }
 
@@ -691,7 +691,7 @@
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(24);
-      pdf.text('RELATÓRIO FOTOGRÁFICO', pageWidth / 2, 31, { align: 'center' });
+      pdf.text('RELATÓRIO DE INSPEÇÕES', pageWidth / 2, 31, { align: 'center' });
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10.5);
       pdf.text('Documento gerado automaticamente', pageWidth / 2, 40, { align: 'center' });
@@ -730,7 +730,7 @@
         const comp = estado.componentes[i];
         pdf.addPage();
         pagina += 1;
-        adicionarCabecalhoPagina(pdf, 'Relatório Fotográfico', `Componente ${i + 1}`);
+        adicionarCabecalhoPagina(pdf, 'Relatório de Inspeções', `Componente ${i + 1}`);
         adicionarRodapePagina(pdf, pagina);
 
         let y = 32;
@@ -751,7 +751,7 @@
         if (y + alturaObs > pageHeight - espacoRodape) {
           pdf.addPage();
           pagina += 1;
-          adicionarCabecalhoPagina(pdf, 'Relatório Fotográfico', `Componente ${i + 1} (continuação)`);
+          adicionarCabecalhoPagina(pdf, 'Relatório de Inspeções', `Componente ${i + 1} (continuação)`);
           adicionarRodapePagina(pdf, pagina);
           y = 32;
         }
@@ -789,7 +789,7 @@
             if (y + hPrevista + 18 > pageHeight - espacoRodape) {
               pdf.addPage();
               pagina += 1;
-              adicionarCabecalhoPagina(pdf, 'Relatório Fotográfico', `Componente ${i + 1} (continuação)`);
+              adicionarCabecalhoPagina(pdf, 'Relatório de Inspeções', `Componente ${i + 1} (continuação)`);
               adicionarRodapePagina(pdf, pagina);
               y = 32;
             }
@@ -818,7 +818,7 @@
             if (y + hPrevista + 18 > pageHeight - espacoRodape) {
               pdf.addPage();
               pagina += 1;
-              adicionarCabecalhoPagina(pdf, 'Relatório Fotográfico', `Componente ${i + 1} (continuação)`);
+              adicionarCabecalhoPagina(pdf, 'Relatório de Inspeções', `Componente ${i + 1} (continuação)`);
               adicionarRodapePagina(pdf, pagina);
               y = 32;
             }
@@ -844,7 +844,7 @@
           if (y + rowHeight + 18 > pageHeight - espacoRodape) {
             pdf.addPage();
             pagina += 1;
-            adicionarCabecalhoPagina(pdf, 'Relatório Fotográfico', `Componente ${i + 1} (continuação)`);
+            adicionarCabecalhoPagina(pdf, 'Relatório de Inspeções', `Componente ${i + 1} (continuação)`);
             adicionarRodapePagina(pdf, pagina);
             y = 32;
           }
